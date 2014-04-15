@@ -19,7 +19,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #ifndef SEGMENTS_H
 #define SEGMENTS_H
 
-#include "OpticalFlow.h"
 #include "RegionTree.h"
 
 class Segment3D {

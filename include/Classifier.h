@@ -35,41 +35,38 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #include <pcl/features/normal_3d.h>
 #include <pcl/features/integral_image_normal.h>
 #include <pcl/visualization/cloud_viewer.h>
+#include <boost/filesystem.hpp>
 
-#include "OpticalFlow.h"
 #include "GraphSegmentation.h"
 
 #include <Shlwapi.h>
 #include <string.h>
 
-#define NUM_CLUSTERS 1000
+#define NUM_CLUSTERS 20
 
 cv::Mat imread_depth(const char* fname, bool binary=true);
 cv::Mat imread_float(const char* fname, bool binary=true);
 void imwrite_float(const char* fname, cv::Mat &img, bool binary=true);
 void imwrite_depth(const char* fname, cv::Mat &img, bool binary=true);
-void CreatePointCloudFromRegisteredNYUData(const cv::Mat &img, const cv::Mat &depth, PointCloudBgr *cloud);
-void LoadData(std::string direc, int i, cv::Mat &img, cv::Mat &depth, cv::Mat &label);
+void ConvertCloudtoGrayMat(const PointCloudBgr &in, cv::Mat &out);
 
 class Classifier {
 public:
 	int categories; //number of categories
 	int clusters; //number of clusters for SURF features to build vocabulary
-	std::string direc; //directory of NYU data
+	std::string direc; //directory of data
 	cv::Mat vocab; //vocabulary
 	cv::Ptr<cv::FeatureDetector> featureDetector;
 	cv::Ptr<cv::DescriptorExtractor> descriptorExtractor;
 	cv::Ptr<cv::BOWKMeansTrainer> bowtrainer;
 	cv::Ptr<cv::BOWImgDescriptorExtractor> bowDescriptorExtractor;
 	cv::Ptr<cv::DescriptorMatcher> descriptorMatcher;
-
-	std::deque<int> testingInds, trainingInds;
-	std::vector<int> classMap;
+	CvRTrees* rtree;
 
 	Classifier(std::string direc_) {
 		direc = direc_;
 		clusters = NUM_CLUSTERS;
-		categories = 4;
+		categories = 3;
 		featureDetector = (new cv::SurfFeatureDetector());
 		descriptorExtractor = (new cv::SurfDescriptorExtractor());
 		bowtrainer = (new cv::BOWKMeansTrainer(clusters));
@@ -80,11 +77,9 @@ public:
 
 	void build_vocab(); //function to build the BOW vocabulary
 	void load_vocab(); //function to load the BOW vocabulary and classifiers
-	void CalculateSIFTFeatures(cv::Mat &img, cv::Mat &mask, cv::Mat &descriptors);
-	void CalculateBOWFeatures(cv::Mat &img, cv::Mat &mask, cv::Mat &descriptors);
-	void LoadTestingInd();
-	void LoadTrainingInd();
-	void LoadClass4Map();
+	void load_classifier();
+	void CalculateSIFTFeatures(const PointCloudBgr &cloud, cv::Mat &descriptors);
+	void CalculateBOWFeatures(const PointCloudBgr &cloud, cv::Mat &descriptors);
 
 };
 

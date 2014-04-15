@@ -21,10 +21,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #define GRAPH_SEGMENTATION_H
 
 #include <vector>
-#include "OpticalFlow.h"
 #include "Edges.h"
 #include "Segments.h"
-#include "BuildGraph.h"
 #include "RegionTree.h"
 #include <amp.h>
 #include <amp_math.h>

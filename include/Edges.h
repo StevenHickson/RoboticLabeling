@@ -20,6 +20,33 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #ifndef EDGES_H
 #define EDGES_H
 
+#include <opencv2/opencv.hpp>
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
+#include "opencv2/core/core.hpp"
+#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/video/video.hpp"
+#include <assert.h>
+
+#define KINECT_CX_D 2.555704e+02
+#define KINECT_CY_D 1.999361e+02
+#define KINECT_FX_D 2.759283678919818e-03
+#define KINECT_FY_D 2.759904330676281e-03
+
+template <typename T> inline T Clamp(T a, T minn, T maxx)
+{ return (a < minn) ? minn : ( (a > maxx) ? maxx : a ); }
+
+inline int Round (float a)  
+{
+	assert( !_isnan( a ) );
+	return static_cast<int>(a>=0 ? a+0.5f : a-0.5f); 
+} 
+
+typedef pcl::PointCloud<pcl::PointXYZRGBA> PointCloudBgr;
+typedef pcl::PointCloud<pcl::PointXYZI> PointCloudInt;
+typedef pcl::PointCloud<pcl::PointNormal> PointCloudNormal;
+
+
 class Edge {
 public:
 	float w;

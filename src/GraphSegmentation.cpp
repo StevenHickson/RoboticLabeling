@@ -393,44 +393,6 @@ void iBuildGraphColorAndNormals(const PointCloud<PointXYZRGBA> &color,
 	*num_edges = num;
 }
 
-
-void iBuildGraphCUDA(const PointCloud<PointXYZRGBA>::ConstPtr &in,
-					 float sigma_depth,
-					 float sigma_color,
-					 Edge3D *&edges,
-					 int *num_edges)
-{
-	int reserve_size = in->size()*4;
-	//printf("Reserve size = %d\n",reserve_size);
-	edges = (Edge3D*) calloc(reserve_size,sizeof(Edge3D));
-	if(edges == NULL) {
-		printf("Error, could not malloc\n");
-		return;
-	}
-	Mat R,G,B,D, smooth_r, smooth_g, smooth_b, smooth_d;
-	iExtractRGBDColorSpace(*in, B, G, R, D);
-	iSmooth(B, sigma_color, smooth_b);
-	iSmooth(G, sigma_color, smooth_g);
-	iSmooth(R, sigma_color, smooth_r);
-	iSmooth(D, sigma_depth, smooth_d);
-
-	//Normalize
-	//PointCloud<Bgr> norm;
-	//Normalize(in,&norm);
-
-	igpuBuildGraph(smooth_r, smooth_g, smooth_b, smooth_d, edges, reserve_size);
-	R.release();
-	G.release();
-	B.release();
-	D.release();
-	smooth_b.release();
-	smooth_g.release();
-	smooth_r.release();
-	smooth_d.release();
-	//I need to clean up the edges somehow
-	*num_edges = reserve_size;
-}
-
 bool lessThan (const Edge& a, const Edge& b) {
 	return a.w < b.w;
 }

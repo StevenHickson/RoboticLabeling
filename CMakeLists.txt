@@ -43,4 +43,4 @@ list(REMOVE_DUPLICATES RoboticLabeling_INCLUDE_DIRS)
 include_directories(${RoboticLabeling_INCLUDE_DIRS})
 
 add_executable (RoboticLabeling ${RoboticLabeling_SOURCES} ${RoboticLabeling_HEADERS})
-target_link_libraries (RoboticLabeling ${PCL_LIBRARIES} ${OpenCV_LIBS} Kinect20.lib debug Debug/PCL_Kinect2SDK optimized Release/PCL_Kinect2SDK)
+target_link_libraries (RoboticLabeling ${PCL_LIBRARIES} ${OpenCV_LIBS} Shlwapi Kinect20.lib debug Debug/PCL_Kinect2SDK optimized Release/PCL_Kinect2SDK)

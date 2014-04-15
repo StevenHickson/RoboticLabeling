@@ -19,7 +19,6 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #ifndef REGION_TREE_H
 #define REGION_TREE_H
 
-#include "OpticalFlow.h"
 #include "Edges.h"
 #include <vector>
 #include <amp.h>
