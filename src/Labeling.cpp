@@ -61,7 +61,7 @@ inline void MakeCloudDense(PointCloud<PointNormal>::Ptr &cloud) {
 class SimpleSegmentViewer
 {
 public:
-	SimpleSegmentViewer () : viewer("Original Viewer"), 
+	SimpleSegmentViewer () : 
 		label(new pcl::PointCloud<pcl::PointXYZI>), segment(new pcl::PointCloud<pcl::PointXYZRGBA>), sharedCloud(new pcl::PointCloud<pcl::PointXYZRGBA>), normals (new pcl::PointCloud<pcl::PointNormal>), update(false) { c = new Classifier(""); };
 	void cloud_cb_ (const boost::shared_ptr<const PointCloud<PointXYZRGBA> > &cloud)
 	{
@@ -116,22 +116,23 @@ public:
 		my_interface->start ();
 
 		bool finished = false;
-		while (!viewer.wasStopped())
-		{
-			normalMutex.lock();
-			if(update) {
-				//viewer.removePointCloud("cloud");
-				viewer.removePointCloud("original");
-				viewer.addPointCloud(segment,"original");
-				//viewer.addPointCloudNormals<pcl::PointXYZRGBA,pcl::PointNormal>(sharedCloud, normals);
-				update = false;
-				sharedCloud->clear();
-				segment->clear();
-				//normals->clear();
-			}
-			viewer.spinOnce();
-			normalMutex.unlock();
-		}
+		while(1);
+		//while (!viewer.wasStopped())
+		//{
+		//	normalMutex.lock();
+		//	if(update) {
+		//		//viewer.removePointCloud("cloud");
+		//		viewer.removePointCloud("original");
+		//		viewer.addPointCloud(segment,"original");
+		//		//viewer.addPointCloudNormals<pcl::PointXYZRGBA,pcl::PointNormal>(sharedCloud, normals);
+		//		update = false;
+		//		sharedCloud->clear();
+		//		segment->clear();
+		//		//normals->clear();
+		//	}
+		//	viewer.spinOnce();
+		//	normalMutex.unlock();
+		//}
 
 		my_interface->stop ();
 	}
@@ -139,7 +140,7 @@ public:
 	boost::shared_ptr<PointCloud<PointXYZI> > label;
 	boost::shared_ptr<pcl::PointCloud<pcl::PointXYZRGBA> > segment, sharedCloud;
 	boost::shared_ptr<pcl::PointCloud<pcl::PointNormal> > normals;
-	pcl::visualization::PCLVisualizer viewer;
+	//pcl::visualization::PCLVisualizer viewer;
 	bool update;
 	boost::mutex normalMutex;
 	Segment3D stseg;
