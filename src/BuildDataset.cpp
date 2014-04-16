@@ -356,11 +356,15 @@ void Classifier::TestCloud(const PointCloudBgr &cloud) {
 	//Mat element = getStructuringElement(MORPH_RECT, Size( 2*2 + 1, 2*2+1 ), Point( 2, 2 ) );
 	vector<Region3D*>::const_iterator p = tree.top_regions.begin();
 	for(int i = 0; i < tree.top_regions.size(); i++, p++) {
-		vector<float> sample;
-		GetMatFromRegion(*p,*this,gImg,data.labelCloud,kp,sample,feature_len);
-		Mat sampleMat = Mat(sample);
-		result = Round(rtree->predict(sampleMat));
-		tree.SetBranch(*p,0,result);
+		if(!boost::math::isnan<float>((*p)->m_centroid3D.z) /*&& !boost::math::isinf<float>((*p)->m_centroid3D.z)*/) {
+			vector<float> sample;
+			GetMatFromRegion(*p,*this,gImg,data.labelCloud,kp,sample,feature_len);
+			Mat sampleMat = Mat(sample);
+			result = Round(rtree->predict(sampleMat));
+			tree.SetBranch(*p,0,result);
+		} else {
+			tree.SetBranch(*p,0,0);
+		}
 	}
 
 	//release stuff

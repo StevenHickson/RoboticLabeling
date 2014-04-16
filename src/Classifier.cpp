@@ -350,16 +350,18 @@ void Classifier::CreateAugmentedCloud(PointCloudBgr::Ptr &out) {
 	PointCloudInt::const_iterator pI = data.labelCloud.begin();
 	float added, newVal;
 	while(pO != out->end()) {
-		Vec3b color = data.colors[Clamp(int(pI->intensity),0,3)];
-		added = float(color[0]) * ALPHA;
-		newVal = float(pO->b) * (1.0f - ALPHA) + added;
-		pO->b = Round(newVal);
-		added = float(color[1]) * ALPHA;
-		newVal = float(pO->g) * (1.0f - ALPHA) + added;
-		pO->g = Round(newVal);
-		added = float(color[2]) * ALPHA;
-		newVal = float(pO->r) * (1.0f - ALPHA) + added;
-		pO->r = Round(newVal);
+		if(pI->intensity != 0) {
+			Vec3b color = data.colors[Clamp(int(pI->intensity),0,3)];
+			added = float(color[0]) * ALPHA;
+			newVal = float(pO->b) * (1.0f - ALPHA) + added;
+			pO->b = Round(newVal);
+			added = float(color[1]) * ALPHA;
+			newVal = float(pO->g) * (1.0f - ALPHA) + added;
+			pO->g = Round(newVal);
+			added = float(color[2]) * ALPHA;
+			newVal = float(pO->r) * (1.0f - ALPHA) + added;
+			pO->r = Round(newVal);
+		}
 		++pO; ++pI;
 	}
 }

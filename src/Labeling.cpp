@@ -90,7 +90,7 @@ public:
 			c->TestCloud(*cloud);
 			c->CreateAugmentedCloud(sharedCloud);
 			double end = pcl::getTime();
-			cout << "Time: " << end << endl;
+			cout << "Time: " << (end - begin) << endl;
 			update = true;
 			Mat tmp;
 			GetMatFromCloud(*sharedCloud,tmp);
