@@ -58,88 +58,44 @@ inline void MakeCloudDense(PointCloud<PointNormal>::Ptr &cloud) {
 	}
 }
 
-inline void minMax(const PointCloud<PointNormal>::ConstPtr &cloud, PointNormal *min, PointNormal *max) {
-	PointCloud<PointNormal>::const_iterator p = cloud->begin();
-	min->normal_x = max->normal_x = p->normal_x;
-	min->normal_y = max->normal_y = p->normal_y;
-	min->normal_z = max->normal_z = p->normal_z;
-	for(int j = 0; j < cloud->height; j++) {
-		for(int i = 0; i < cloud->width; i++) {
-			if(!_isnan(p->normal_x)) {
-				if(_isnan(min->normal_x))
-					min->normal_x = p->normal_x;
-				if(_isnan(max->normal_x))
-					max->normal_x = p->normal_x;
-				if(p->normal_x < min->normal_x)
-					min->normal_x = p->normal_x;
-				if(p->normal_x > max->normal_x)
-					max->normal_x = p->normal_x;
-			}
-			if(!_isnan(p->normal_y)) {
-				if(_isnan(min->normal_y))
-					min->normal_y = p->normal_y;
-				if(_isnan(max->normal_y))
-					max->normal_y = p->normal_y;
-				if(p->normal_y < min->normal_y)
-					min->normal_y = p->normal_y;
-				if(p->normal_y > max->normal_y)
-					max->normal_y = p->normal_y;
-			}
-			if(!_isnan(p->normal_z)) {
-				if(_isnan(min->normal_z))
-					min->normal_z = p->normal_z;
-				if(_isnan(max->normal_z))
-					max->normal_z = p->normal_z;
-				if(p->normal_z < min->normal_z)
-					min->normal_z = p->normal_z;
-				if(p->normal_z > max->normal_z)
-					max->normal_z = p->normal_z;
-			}
-			++p;
-		}
-	}
-}
-
-inline void EstimateNormals(const PointCloud<PointXYZRGBA>::ConstPtr &cloud, PointCloud<PointNormal>::Ptr &normals) {
-	pcl::IntegralImageNormalEstimation<pcl::PointXYZRGBA, pcl::PointNormal> ne;
-	ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
-	ne.setMaxDepthChangeFactor(0.02f);
-	ne.setNormalSmoothingSize(10.0f);
-	ne.setInputCloud(cloud);
-	ne.compute(*normals);
-}
-
 class SimpleSegmentViewer
 {
 public:
 	SimpleSegmentViewer () : viewer("Original Viewer"), 
-		label(new pcl::PointCloud<pcl::PointXYZI>), segment(new pcl::PointCloud<pcl::PointXYZRGBA>), sharedCloud(new pcl::PointCloud<pcl::PointXYZRGBA>), normals (new pcl::PointCloud<pcl::PointNormal>), update(false) {}
-
+		label(new pcl::PointCloud<pcl::PointXYZI>), segment(new pcl::PointCloud<pcl::PointXYZRGBA>), sharedCloud(new pcl::PointCloud<pcl::PointXYZRGBA>), normals (new pcl::PointCloud<pcl::PointNormal>), update(false) { c = new Classifier(""); };
 	void cloud_cb_ (const boost::shared_ptr<const PointCloud<PointXYZRGBA> > &cloud)
 	{
 		if(!cloud->empty()) {
 			normalMutex.lock();
 			double begin = pcl::getTime();
-			//const KinectData* convert = data.get();
-			//sharedCloud = (cloud->makeShared());
 			copyPointCloud(*cloud,*sharedCloud);
 			EstimateNormals(sharedCloud,normals);
-			/*PointNormal min, max;
-			minMax(normals,&min,&max);*/
 			MakeCloudDense(*sharedCloud);
 			//MakeCloudDense(normals);
-			//io::savePLYFileASCII<PointXYZRGBA>("test2.ply",cloud);
 			stseg.AddSlice(*sharedCloud,0.5f,900,500,0.8f,900,500,label,segment);
 			//SegmentNormals(*sharedCloud,normals,0.5f,50,50,label,segment);
 			label->clear();
 			double end = pcl::getTime();
-			cout << "Time: " << (end - begin) << endl;
-			//io::savePLYFileASCII<PointXYZRGBA>("test3.ply",*segment);
-			//pcl::io::savePCDFile("output.pcd",*segment);
-			//viewer1->showCloud(data->cloud.makeShared());
-			//viewer.showCloud(segment);
-			//copyPointCloud(data->cloud,*sharedCloud);
 			update = true;
+			normalMutex.unlock();
+		}
+	}
+
+	void cloud_cb2_ (const boost::shared_ptr<const PointCloud<PointXYZRGBA> > &cloud)
+	{
+		if(!cloud->empty()) {
+			normalMutex.lock();
+			double begin = pcl::getTime();
+			copyPointCloud(*cloud,*sharedCloud);
+			c->TestCloud(*cloud);
+			c->CreateAugmentedCloud(sharedCloud);
+			double end = pcl::getTime();
+			cout << "Time: " << end << endl;
+			update = true;
+			Mat tmp;
+			GetMatFromCloud(*sharedCloud,tmp);
+			imshow("Results",tmp);
+			waitKey(1);
 			normalMutex.unlock();
 		}
 	}
@@ -151,11 +107,12 @@ public:
 
 		// make callback function from member function
 		boost::function<void (const boost::shared_ptr<const PointCloud<PointXYZRGBA> >&)> f =
-			boost::bind (&SimpleSegmentViewer::cloud_cb_, this, _1);
+			boost::bind (&SimpleSegmentViewer::cloud_cb2_, this, _1);
 
 		my_interface->registerCallback (f);
 
 		//viewer.setBackgroundColor(0.0, 0.0, 0.5);
+		c->InitializeTesting();
 		my_interface->start ();
 
 		bool finished = false;
@@ -163,10 +120,10 @@ public:
 		{
 			normalMutex.lock();
 			if(update) {
-				viewer.removePointCloud("cloud");
+				//viewer.removePointCloud("cloud");
 				viewer.removePointCloud("original");
 				viewer.addPointCloud(segment,"original");
-				viewer.addPointCloudNormals<pcl::PointXYZRGBA,pcl::PointNormal>(sharedCloud, normals);
+				//viewer.addPointCloudNormals<pcl::PointXYZRGBA,pcl::PointNormal>(sharedCloud, normals);
 				update = false;
 				sharedCloud->clear();
 				segment->clear();
@@ -186,12 +143,26 @@ public:
 	bool update;
 	boost::mutex normalMutex;
 	Segment3D stseg;
+	Classifier *c;
 };
 
 int main (int argc, char** argv) {
 	try {
-		SimpleSegmentViewer v;
-		v.run();
+		int run = atoi(argv[2]);
+		if(run == 0) {
+			Classifier c(argv[1]);
+			c.build_vocab();
+		} else if(run == 1) {
+			Classifier c(argv[1]);
+			c.Annotate();
+		} else if(run == 2)
+			BuildDataset(string(argv[1]));
+		else if(run == 3)
+			BuildRFClassifier(string(argv[1]));
+		else {
+			SimpleSegmentViewer v;
+			v.run();
+		}
 	} catch (pcl::PCLException e) {
 		cout << e.detailedMessage() << endl;
 	} catch (std::exception &e) {

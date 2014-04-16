@@ -11,6 +11,7 @@
 
 #define WIDTH 4.0
 #define THRESHOLD(size, c) (c/size)
+#define INFINITY 1000000.0f
 
 template <class T>
 inline T square(const T &x) { return x*x; }; 
@@ -82,7 +83,10 @@ void iExtractRGBDColorSpace(const PointCloud<PointXYZRGBA>& in, Mat &B, Mat &G, 
 		*pB = ((float)pI->b - 127.5f) / 127.5f;
 		*pG = ((float)pI->g - 127.5f) / 127.5f;
 		*pR = ((float)pI->r - 127.5f) / 127.5f;
-		*pD = 1000.0f*pI->z;
+		if(!boost::math::isnan<float>(pI->z) && !boost::math::isinf<float>(pI->z) && pI->z != 0)
+			*pD = 1000.0f*pI->z;
+		else
+			*pD = 0;
 		pI++; pB++; pG++; pR++; pD++;
 	}
 }
@@ -94,9 +98,15 @@ void iExtractNormals(const PointCloud<PointNormal>& in, Mat &X, Mat &Y, Mat &Z) 
 	PointCloud<PointNormal>::const_iterator pI = in.begin();
 	Mat_<float>::iterator pX = X.begin<float>(),pY = Y.begin<float>(),pZ = Z.begin<float>();
 	while(pI != in.end()) {
-		*pX = pI->normal_x;
-		*pY = pI->normal_y;
-		*pZ = pI->normal_z;
+		if(!boost::math::isnan<float>(pI->z) && !boost::math::isinf<float>(pI->z) && pI->z != 0) {
+			*pX = pI->normal_x;
+			*pY = pI->normal_y;
+			*pZ = pI->normal_z;
+		} else {
+			*pX = -1;
+			*pY = -1;
+			*pZ = -1;
+		}
 		++pI; ++pX; ++pY; ++pZ;
 	}
 }
@@ -141,6 +151,7 @@ void iBuildGraph(const PointCloud<PointXYZRGBA> &in,
 	Edge3D *p = edges;
 	Mat_<float>::const_iterator pR = smooth_r.begin<float>(), pG = smooth_g.begin<float>(), pB = smooth_b.begin<float>(), pD = smooth_d.begin<float>();
 	Mat_<float>::const_iterator pRBegin = pR, pGBegin = pG, pBBegin = pB, pDBegin = pD;
+	Mat_<float>::const_iterator pCheck;
 	//PointCloud<Bgr>::ConstIterator pC = in.Begin();
 	for ( y = 0, ym = -1, yp = 1; y < height; y++, ym++, yp++)
 	{
@@ -152,7 +163,11 @@ void iBuildGraph(const PointCloud<PointXYZRGBA> &in,
 				Edge3D edge;
 				edge.a = y * width + x;
 				edge.b = y * width + xp;
-				edge.w = fabsf(*pD - *(pDBegin + edge.b));
+				pCheck = (pDBegin + edge.b);
+				if((_isnan(*pD) && !_isnan(*pCheck)) || (!_isnan(*pD) && _isnan(*pCheck)))
+					edge.w = INFINITY;
+				else
+					edge.w = fabsf(*pD - *pCheck);
 				edge.w2 =  sqrtf(square(*pR - *(pRBegin + edge.b))+square(*pG - *(pGBegin + edge.b))+square(*pB - *(pBBegin + edge.b)));
 				//edge.valid = true;
 				*p++ = edge;
@@ -163,7 +178,11 @@ void iBuildGraph(const PointCloud<PointXYZRGBA> &in,
 				Edge3D edge;
 				edge.a = y * width + x;
 				edge.b = yp * width + x;
-				edge.w = fabsf(*pD - *(pDBegin + edge.b));
+				pCheck = (pDBegin + edge.b);
+				if((_isnan(*pD) && !_isnan(*pCheck)) || (!_isnan(*pD) && _isnan(*pCheck)))
+					edge.w = INFINITY;
+				else
+					edge.w = fabsf(*pD - *pCheck);
 				edge.w2 =  sqrtf(square(*pR - *(pRBegin + edge.b))+square(*pG - *(pGBegin + edge.b))+square(*pB - *(pBBegin + edge.b)));
 				//edge.valid = true;
 				*p++ = edge;
@@ -174,7 +193,11 @@ void iBuildGraph(const PointCloud<PointXYZRGBA> &in,
 				Edge3D edge;
 				edge.a = y * width + x;
 				edge.b = yp * width + xp;
-				edge.w = fabsf(*pD - *(pDBegin + edge.b));
+				pCheck = (pDBegin + edge.b);
+				if((_isnan(*pD) && !_isnan(*pCheck)) || (!_isnan(*pD) && _isnan(*pCheck)))
+					edge.w = INFINITY;
+				else
+					edge.w = fabsf(*pD - *pCheck);
 				edge.w2 =  sqrtf(square(*pR - *(pRBegin + edge.b))+square(*pG - *(pGBegin + edge.b))+square(*pB - *(pBBegin + edge.b)));
 				//edge.valid = true;
 				*p++ = edge;
@@ -185,7 +208,11 @@ void iBuildGraph(const PointCloud<PointXYZRGBA> &in,
 				Edge3D edge;
 				edge.a  = y * width + x;
 				edge.b  = ym * width + xp;
-				edge.w = fabsf(*pD - *(pDBegin + edge.b));
+				pCheck = (pDBegin + edge.b);
+				if((_isnan(*pD) && !_isnan(*pCheck)) || (!_isnan(*pD) && _isnan(*pCheck)))
+					edge.w = INFINITY;
+				else
+					edge.w = fabsf(*pD - *pCheck);
 				edge.w2 =  sqrtf(square(*pR - *(pRBegin + edge.b))+square(*pG - *(pGBegin + edge.b))+square(*pB - *(pBBegin + edge.b)));
 				//edge.valid = true;
 				*p++ = edge;
@@ -314,9 +341,9 @@ void iBuildGraphColorAndNormals(const PointCloud<PointXYZRGBA> &color,
 	}
 	Mat X,Y,Z, smooth_x, smooth_y, smooth_z;
 	iExtractNormals(normal, X, Y, Z);
-	iSmooth(X, sigma_normal, smooth_x);
+	/*iSmooth(X, sigma_normal, smooth_x);
 	iSmooth(Y, sigma_normal, smooth_y);
-	iSmooth(Z, sigma_normal, smooth_z);
+	iSmooth(Z, sigma_normal, smooth_z);*/
 
 	Mat R,G,B,D, smooth_r, smooth_g, smooth_b;
 	iExtractRGBDColorSpace(color, B, G, R, D);
@@ -325,7 +352,7 @@ void iBuildGraphColorAndNormals(const PointCloud<PointXYZRGBA> &color,
 	iSmooth(R, sigma_color, smooth_r);
 
 	Edge *p = edges;
-	Mat_<float>::const_iterator pX = smooth_x.begin<float>(), pY = smooth_y.begin<float>(), pZ = smooth_z.begin<float>();
+	Mat_<float>::const_iterator pX = X.begin<float>(), pY = Y.begin<float>(), pZ = Z.begin<float>();
 	Mat_<float>::const_iterator pXBegin = pX, pYBegin = pY, pZBegin = pZ;
 	Mat_<float>::const_iterator pR = smooth_r.begin<float>(), pG = smooth_g.begin<float>(), pB = smooth_b.begin<float>();
 	Mat_<float>::const_iterator pRBegin = pR, pGBegin = pG, pBBegin = pB;
@@ -866,8 +893,8 @@ int SegmentColorAndNormals(const pcl::PointCloud<pcl::PointXYZRGBA> &cloud,
 						   float sigma_color,
 						   float c, 
 						   int min_size,
-						   pcl::PointCloud<pcl::PointXYZI>::Ptr &out,
-						   pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &out_color) {
+						   pcl::PointCloud<pcl::PointXYZI> *out,
+						   pcl::PointCloud<pcl::PointXYZRGBA> *out_color) {
 							   int i, size = in->size();
 							   Universe currU = Universe(size);
 							   Edge *currE = NULL;

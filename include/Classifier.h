@@ -44,11 +44,56 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 
 #define NUM_CLUSTERS 20
 
+const float parameters[] = { 0.5f,800.0f,400,0.8f,800.0f,400,300,0.3f };
+const float normalParameters[] = { 0.0f,0.8f,20,100,100,0.1f };
+
 cv::Mat imread_depth(const char* fname, bool binary=true);
 cv::Mat imread_float(const char* fname, bool binary=true);
 void imwrite_float(const char* fname, cv::Mat &img, bool binary=true);
 void imwrite_depth(const char* fname, cv::Mat &img, bool binary=true);
 void ConvertCloudtoGrayMat(const PointCloudBgr &in, cv::Mat &out);
+void GetMatFromCloud(const PointCloudBgr &cloud, cv::Mat &img);
+void GetMatFromCloud(const PointCloudInt &cloud, cv::Mat &img);
+void EstimateNormals(const pcl::PointCloud<pcl::PointXYZRGBA>::ConstPtr &cloud, pcl::PointCloud<pcl::PointNormal>::Ptr &normals, bool fill=false);
+
+#define BLACK cv::Vec3b(0,0,0)
+#define BLUE cv::Vec3b(255,0,0)
+#define GREEN cv::Vec3b(0,255,0)
+#define RED cv::Vec3b(0,0,255)
+#define ALPHA 0.3f
+
+class AnnotationData {
+public:
+	PointCloudInt labelCloud;
+	PointCloudBgr segmentCloud, cloud;
+	boost::shared_ptr<PointCloudNormal> normals;
+	cv::Mat orig, img, label;
+	int currLabel;
+	boost::mutex mutex;
+
+	static const int NUM_LABELS = 3;
+	cv::Vec3b colors[NUM_LABELS];
+
+	AnnotationData() : normals(new PointCloudNormal) {
+		currLabel = 0;
+		colors[0] = BLACK;
+		colors[1] = RED;
+		colors[2] = GREEN;
+		colors[3] = BLUE;
+	}
+
+	~AnnotationData() {
+	}
+
+	void Lock() {
+		mutex.lock();
+	}
+
+	void Unlock() {
+		mutex.unlock();
+	}
+};
+
 
 class Classifier {
 public:
@@ -62,6 +107,7 @@ public:
 	cv::Ptr<cv::BOWImgDescriptorExtractor> bowDescriptorExtractor;
 	cv::Ptr<cv::DescriptorMatcher> descriptorMatcher;
 	CvRTrees* rtree;
+	AnnotationData data;
 
 	Classifier(std::string direc_) {
 		direc = direc_;
@@ -80,7 +126,11 @@ public:
 	void load_classifier();
 	void CalculateSIFTFeatures(const PointCloudBgr &cloud, cv::Mat &descriptors);
 	void CalculateBOWFeatures(const PointCloudBgr &cloud, cv::Mat &descriptors);
+	void Annotate();
 
+	void InitializeTesting();
+	void TestCloud(const PointCloudBgr &cloud);
+	void CreateAugmentedCloud(PointCloudBgr::Ptr &out);
 };
 
 #endif

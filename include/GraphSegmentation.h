@@ -26,6 +26,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #include "RegionTree.h"
 #include <amp.h>
 #include <amp_math.h>
+#include <math.h>
+#include "boost/math/special_functions.hpp"
 
 typedef struct
 {
@@ -101,8 +103,8 @@ int SegmentColorAndNormals(const pcl::PointCloud<pcl::PointXYZRGBA> &cloud,
 	float sigma_color,
 	float c, 
 	int min_size,
-	pcl::PointCloud<pcl::PointXYZI>::Ptr &out,
-	pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &out_color);
+	pcl::PointCloud<pcl::PointXYZI> *out,
+	pcl::PointCloud<pcl::PointXYZRGBA> *out_color);
 
 int SHGraphSegment(
 	pcl::PointCloud<pcl::PointXYZRGBA> &in, 

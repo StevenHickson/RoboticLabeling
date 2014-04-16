@@ -1,31 +1,8 @@
 #include "Labeling.h"
 
-const float parameters[] = { 0.5f,500.0f,300,0.8f,500.0f,300,300,0.3f };
-
 using namespace std;
 using namespace pcl;
 using namespace cv;
-
-inline void EstimateNormals(const PointCloud<PointXYZRGBA>::ConstPtr &cloud, PointCloud<PointNormal>::Ptr &normals, bool fill) {
-	pcl::IntegralImageNormalEstimation<pcl::PointXYZRGBA, pcl::PointNormal> ne;
-	ne.setNormalEstimationMethod (ne.AVERAGE_3D_GRADIENT);
-	ne.setMaxDepthChangeFactor(0.02f);
-	ne.setNormalSmoothingSize(10.0f);
-	ne.setInputCloud(cloud);
-	ne.compute(*normals);
-	if(fill) {
-		PointCloudNormal::iterator p = normals->begin();
-		while(p != normals->end()) {
-			if(_isnan(p->normal_x))
-				p->normal_x = 0;
-			if(_isnan(p->normal_y))
-				p->normal_y = 0;
-			if(_isnan(p->normal_z))
-				p->normal_z = 0;
-			++p;
-		}
-	}
-}
 
 inline int GetClass(const PointCloudInt &cloud, const Mat &labels, int id) {
 	int i, ret = 0;
@@ -110,18 +87,41 @@ void GetFeatureVectors(Mat &trainData, Classifier &cl, const RegionTree3D &tree,
 			*pV++ = float((*p)->m_size);
 			*pV++ = (*p)->m_centroid.x;
 			*pV++ = (*p)->m_centroid.y;
-			*pV++ = (*p)->m_centroid3D.x;
-			*pV++ = (*p)->m_centroid3D.y;
-			*pV++ = (*p)->m_centroid3D.z;
+			if(!boost::math::isnan<float>((*p)->m_centroid3D.z) && !boost::math::isinf<float>((*p)->m_centroid3D.z)) {
+				*pV++ = (*p)->m_centroid3D.x;
+				*pV++ = (*p)->m_centroid3D.y;
+				*pV++ = (*p)->m_centroid3D.z;
+			} else {
+				*pV++ = 0;
+				*pV++ = 0;
+				*pV++ = 0;
+			}
 			float a = ((*p)->m_max3D.x - (*p)->m_min3D.x), b = ((*p)->m_max3D.y - (*p)->m_min3D.y), c = ((*p)->m_max3D.z - (*p)->m_min3D.z);
-			*pV++ = (*p)->m_min3D.x;
-			*pV++ = (*p)->m_min3D.y;
-			*pV++ = (*p)->m_min3D.z;
-			*pV++ = (*p)->m_max3D.x;
-			*pV++ = (*p)->m_max3D.y;
-			*pV++ = (*p)->m_max3D.z;
-			*pV++ = sqrt(a*a + c*c);
-			*pV++ = b;
+			if(!boost::math::isnan<float>((*p)->m_min3D.z) && !boost::math::isinf<float>((*p)->m_min3D.z)) {
+				*pV++ = (*p)->m_min3D.x;
+				*pV++ = (*p)->m_min3D.y;
+				*pV++ = (*p)->m_min3D.z;
+			} else {
+				*pV++ = 0;
+				*pV++ = 0;
+				*pV++ = 0;
+			}
+			if(!boost::math::isnan<float>((*p)->m_max3D.z) && !boost::math::isinf<float>((*p)->m_max3D.z)) {
+				*pV++ = (*p)->m_max3D.x;
+				*pV++ = (*p)->m_max3D.y;
+				*pV++ = (*p)->m_max3D.z;
+			} else {
+				*pV++ = 0;
+				*pV++ = 0;
+				*pV++ = 0;
+			}
+			if(!boost::math::isnan<float>(b) && !boost::math::isinf<float>(b)) {
+				*pV++ = sqrt(a*a + c*c);
+				*pV++ = b;
+			} else {
+				*pV++ = 0;
+				*pV++ = 0;
+			}
 			//LABXYZUVW *p1 = (*p)->m_hist;
 			//float tot = HistTotal((*p)->m_hist);
 			for(k = 0; k < NUM_BINS; k++)
@@ -153,7 +153,7 @@ void GetFeatureVectors(Mat &trainData, Classifier &cl, const RegionTree3D &tree,
 	}
 }
 
-void GetMatFromRegion(Region3D *reg, Classifier &cl, const PointCloudBgr &cloud, const PointCloudInt &labelCloud, vector<KeyPoint> &kp, vector<float> &sample, int sample_size) {
+void GetMatFromRegion(Region3D *reg, Classifier &cl, const Mat &gImg, const PointCloudInt &labelCloud, vector<KeyPoint> &kp, vector<float> &sample, int sample_size) {
 	int k;
 	sample.resize(sample_size);
 	//Calculate mask
@@ -161,7 +161,7 @@ void GetMatFromRegion(Region3D *reg, Classifier &cl, const PointCloudBgr &cloud,
 	//CalcMask(cloud,reg->m_centroid3D.intensity,mask);
 	////get features
 	//cl.CalculateBOWFeatures(img,mask,desc);
-	Mat gImg, desc;
+	Mat desc;
 	vector<KeyPoint> regionPoints;
 	regionPoints.reserve(kp.size());
 	vector<KeyPoint>::iterator pK = kp.begin();
@@ -171,26 +171,48 @@ void GetMatFromRegion(Region3D *reg, Classifier &cl, const PointCloudBgr &cloud,
 			regionPoints.push_back(*pK);
 		++pK;
 	}
-	ConvertCloudtoGrayMat(cloud,gImg);
-	cl.descriptorExtractor->compute(gImg,regionPoints,desc);
+	cl.bowDescriptorExtractor->compute(gImg,regionPoints,desc);
 	if(desc.empty())
 		desc = Mat::zeros(1,NUM_CLUSTERS,CV_32F);
 	vector<float>::iterator p = sample.begin();
 	*p++ = float(reg->m_size);
 	*p++ = reg->m_centroid.x;
 	*p++ = reg->m_centroid.y;
-	*p++ = reg->m_centroid3D.x;
-	*p++ = reg->m_centroid3D.y;
-	*p++ = reg->m_centroid3D.z;
+	if(!boost::math::isnan<float>(reg->m_centroid3D.z) && !boost::math::isinf<float>(reg->m_centroid3D.z)) {
+		*p++ = reg->m_centroid3D.x;
+		*p++ = reg->m_centroid3D.y;
+		*p++ = reg->m_centroid3D.z;
+	} else {
+		*p++ = 0;
+		*p++ = 0;
+		*p++ = 0;
+	}
 	float a = (reg->m_max3D.x - reg->m_min3D.x), b = (reg->m_max3D.y - reg->m_min3D.y), c = (reg->m_max3D.z - reg->m_min3D.z);
-	*p++ = reg->m_min3D.x;
-	*p++ = reg->m_min3D.y;
-	*p++ = reg->m_min3D.z;
-	*p++ = reg->m_max3D.x;
-	*p++ = reg->m_max3D.y;
-	*p++ = reg->m_max3D.z;
-	*p++ = sqrt(a*a+c*c);
-	*p++ = b;
+	if(!boost::math::isnan<float>(reg->m_min3D.z) && !boost::math::isinf<float>(reg->m_min3D.z)) {
+		*p++ = reg->m_min3D.x;
+		*p++ = reg->m_min3D.y;
+		*p++ = reg->m_min3D.z;
+	} else {
+		*p++ = 0;
+		*p++ = 0;
+		*p++ = 0;
+	}
+	if(!boost::math::isnan<float>(reg->m_max3D.z) && !boost::math::isinf<float>(reg->m_max3D.z)) {
+		*p++ = reg->m_max3D.x;
+		*p++ = reg->m_max3D.y;
+		*p++ = reg->m_max3D.z;
+	} else {
+		*p++ = 0;
+		*p++ = 0;
+		*p++ = 0;
+	}
+	if(!boost::math::isnan<float>(b) && !boost::math::isinf<float>(b)) {
+		*p++ = sqrt(a*a+c*c);
+		*p++ = b;
+	} else {
+		*p++ = 0;
+		*p++ = 0;
+	}
 	for(k = 0; k < NUM_BINS; k++)
 		*p++ = reg->m_hist[k].a / reg->m_size;
 	for(k = 0; k < NUM_BINS; k++)
@@ -212,28 +234,6 @@ void GetMatFromRegion(Region3D *reg, Classifier &cl, const PointCloudBgr &cloud,
 	float *pD = (float*)desc.data;
 	for(k = 0; k < desc.cols; k++, pD++)
 		*p++ = *pD;
-}
-
-inline void GetMatFromCloud(const PointCloudBgr &cloud, Mat &img) {
-	img = Mat(cloud.height,cloud.width,CV_8UC3);
-	Mat_<Vec3b>::iterator pI = img.begin<Vec3b>();
-	PointCloudBgr::const_iterator pC = cloud.begin();
-	while(pC != cloud.end()) {
-		(*pI)[0] = pC->b;
-		(*pI)[1] = pC->g;
-		(*pI)[2] = pC->r;
-		++pI; ++pC;
-	}
-}
-
-inline void GetMatFromCloud(const PointCloudInt &cloud, Mat &img) {
-	img = Mat(cloud.height,cloud.width,CV_32S);
-	Mat_<int>::iterator pI = img.begin<int>();
-	PointCloudInt::const_iterator pC = cloud.begin();
-	while(pC != cloud.end()) {
-		*pI = pC->intensity;
-		++pI; ++pC;
-	}
 }
 
 void BuildDataset(string direc) {
@@ -260,13 +260,13 @@ void BuildDataset(string direc) {
 	for(boost::filesystem::directory_iterator i(direc), end_iter; i != end_iter; i++) {
 		string filename = string(direc) + i->path().filename().string();
 		pcl::io::loadPCDFile(filename,cloud);
-		//CreateLabeledCloudFromNYUPointCloud(cloud,label,&labelCloud);
-		int segments = SHGraphSegment(cloud,parameters[0],parameters[1],parameters[2],parameters[3],parameters[4],parameters[5],&labelCloud,&segment);
+		label = imread_depth(string("labels/" + i->path().filename().string() + ".dep").c_str());
 		EstimateNormals(cloud.makeShared(),normals,false);
+		int segments = SegmentColorAndNormals(cloud,normals,normalParameters[0],normalParameters[1],normalParameters[2],normalParameters[3],&labelCloud,&segment);
 		RegionTree3D tree;
 		tree.Create(cloud,labelCloud,*normals,segments,0);
-		tree.PropagateRegionHierarchy(parameters[6]);
-		tree.ImplementSegmentation(parameters[7]);
+		tree.PropagateRegionHierarchy(normalParameters[4]);
+		tree.ImplementSegmentation(normalParameters[5]);
 
 		GetFeatureVectors(trainData,c,tree,cloud,labelCloud,label,count);
 		stringstream num;
@@ -339,77 +339,32 @@ void BuildRFClassifier(string direc) {
 	delete rtree;
 }
 
-//void TestRFClassifier(string direc) {
-//	PointCloudBgr cloud,segment;
-//	PointCloudInt labelCloud;
-//	Mat img, depth, label;
-//	boost::shared_ptr<pcl::PointCloud<pcl::PointNormal> > normals(new pcl::PointCloud<pcl::PointNormal>);
-//	//open training file
-//	Classifier c(direc);
-//	c.load_vocab();
-//	c.load_classifier();
-//
-//	int segments = SHGraphSegment(cloud,parameters[0],parameters[1],parameters[2],parameters[3],parameters[4],parameters[5],&labelCloud,&segment);
-//	EstimateNormals(cloud.makeShared(),normals,false);
-//	RegionTree3D tree;
-//	tree.Create(cloud,labelCloud,*normals,segments,0);
-//	tree.PropagateRegionHierarchy(parameters[6]);
-//	tree.ImplementSegmentation(parameters[7]);
-//
-//	int result, feature_len = 14 + 6*NUM_BINS + 3*NUM_BINS_XYZ + NUM_CLUSTERS;
-//	Mat gImg;
-//	cvtColor(img, gImg, CV_BGR2GRAY);
-//	vector<KeyPoint> kp;
-//	c.featureDetector->detect(gImg,kp);
-//	//Mat element = getStructuringElement(MORPH_RECT, Size( 2*2 + 1, 2*2+1 ), Point( 2, 2 ) );
-//	vector<Region3D*>::const_iterator p = tree.top_regions.begin();
-//	for(int i = 0; i < tree.top_regions.size(); i++, p++) {
-//		vector<float> sample;
-//		GetMatFromRegion(*p,c,labelCloud,kp,img,sample,feature_len);
-//		Mat sampleMat = Mat(sample);
-//		result = Round(rtree->predict(sampleMat));
-//		tree.SetBranch(*p,0,result);
-//	}
-//
-//	Mat myResult, groundTruth, myResultColor, groundTruthColor, labelColor, segmentMat;
-//	myResult = Mat(label.rows,label.cols,label.type());
-//	groundTruth = Mat(label.rows,label.cols,label.type());
-//	PointCloudInt::iterator pC = labelCloud.begin();
-//	int *pNewL = (int*)groundTruth.data;
-//	int *pNewC = (int*)myResult.data;
-//	int *pL = (int *)label.data;
-//	while(pC != labelCloud.end()) {
-//		*pNewL = *pL;
-//		*pNewC = pC->intensity;				
-//		++pL; ++pC; ++pNewL; ++pNewC;
-//	}
-//	/*GetMatFromCloud(segment,segmentMat);
-//	groundTruth.convertTo(groundTruth,CV_8UC1,63,0);
-//	myResult.convertTo(myResult,CV_8UC1,63,0);
-//	label.convertTo(labelColor,CV_8UC1,894,0);
-//	applyColorMap(groundTruth,groundTruthColor,COLORMAP_JET);
-//	applyColorMap(myResult,myResultColor,COLORMAP_JET);
-//	imshow("color",img);
-//	imshow("original label",labelColor);
-//	imshow("label",groundTruthColor);
-//	imshow("result",myResultColor);
-//	imshow("segment",segmentMat);
-//	waitKey();*/
-//
-//	//release stuff
-//	segmentMat.release();
-//	myResult.release();
-//	groundTruth.release();
-//	myResultColor.release();
-//	groundTruthColor.release();
-//	segment.clear();
-//	cloud.clear();
-//	labelCloud.clear();
-//	img.release();
-//	depth.release();
-//	label.release();
-//	normals->clear();
-//	tree.top_regions.clear();
-//	tree.Release();
-//
-//}
+void Classifier::TestCloud(const PointCloudBgr &cloud) {
+	data.cloud = cloud;
+	EstimateNormals(cloud.makeShared(),data.normals,false);
+	int segments = SegmentColorAndNormals(cloud,data.normals,normalParameters[0],normalParameters[1],normalParameters[2],normalParameters[3],&data.labelCloud,&data.segmentCloud);
+	RegionTree3D tree;
+	tree.Create(cloud,data.labelCloud,*data.normals,segments,0);
+	tree.PropagateRegionHierarchy(normalParameters[4]);
+	tree.ImplementSegmentation(normalParameters[5]);
+
+	int result, feature_len = 14 + 6*NUM_BINS + 3*NUM_BINS_XYZ + NUM_CLUSTERS;
+	vector<KeyPoint> kp;
+	Mat gImg;
+	ConvertCloudtoGrayMat(cloud,gImg);
+	featureDetector->detect(gImg,kp);
+	//Mat element = getStructuringElement(MORPH_RECT, Size( 2*2 + 1, 2*2+1 ), Point( 2, 2 ) );
+	vector<Region3D*>::const_iterator p = tree.top_regions.begin();
+	for(int i = 0; i < tree.top_regions.size(); i++, p++) {
+		vector<float> sample;
+		GetMatFromRegion(*p,*this,gImg,data.labelCloud,kp,sample,feature_len);
+		Mat sampleMat = Mat(sample);
+		result = Round(rtree->predict(sampleMat));
+		tree.SetBranch(*p,0,result);
+	}
+
+	//release stuff
+	data.normals->clear();
+	tree.top_regions.clear();
+	tree.Release();
+}
