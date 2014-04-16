@@ -120,16 +120,22 @@ inline void Region3D::InitializeRegion(PointXYZI *in, Vec3b &color, const pcl::P
 	m_hist[Clamp(Round(labxyz.x * HIST_MUL_X),0,NUM_BINS_XYZ)].x++;
 	m_hist[Clamp(Round(labxyz.y * HIST_MUL_Y),0,NUM_BINS_XYZ)].y++;
 	m_hist[Clamp(Round(labxyz.z * HIST_MUL_Z),0,NUM_BINS_XYZ)].z++;
-	if(!_isnan(labxyz.u))
+	//if(!_isnan(labxyz.u) && !boost::math::isinf<float>(labxyz.u))
 		m_hist[Clamp(Round(labxyz.u * HIST_MUL_N),0,NUM_BINS)].u++;
-	if(!_isnan(labxyz.v))
+	//if(!_isnan(labxyz.v) && !boost::math::isinf<float>(labxyz.v))
 		m_hist[Clamp(Round(labxyz.v * HIST_MUL_N),0,NUM_BINS)].v++;
-	if(!_isnan(labxyz.w))
+	//if(!_isnan(labxyz.w) && !boost::math::isinf<float>(labxyz.w))
 		m_hist[Clamp(Round(labxyz.w * HIST_MUL_N),0,NUM_BINS)].w++;
 	m_centroid = Point(i,j);
-	m_centroid3D.x = m_min3D.x = m_max3D.x = in->x;
-	m_centroid3D.y = m_min3D.y = m_max3D.y = in->y;
-	m_centroid3D.z = m_min3D.z = m_max3D.z = in->z;
+	if(!boost::math::isnan<float>(in->z) && !boost::math::isinf<float>(in->z)) {
+		m_centroid3D.x = m_min3D.x = m_max3D.x = in->x;
+		m_centroid3D.y = m_min3D.y = m_max3D.y = in->y;
+		m_centroid3D.z = m_min3D.z = m_max3D.z = in->z;
+	} else {
+		m_centroid3D.x = m_min3D.x = m_max3D.x = 0;
+		m_centroid3D.y = m_min3D.y = m_max3D.y = 0;
+		m_centroid3D.z = m_min3D.z = m_max3D.z = 0;
+	}
 	m_centroid3D.intensity = label;
 	m_nodes.reserve(76800);
 	m_neighbors.reserve(8);
@@ -216,18 +222,20 @@ inline void Region3D::AddNode(PointXYZI *in, Vec3b &color, const pcl::PointNorma
 	m_hist[Clamp(Round(labxyz.x * HIST_MUL_X), 0, NUM_BINS_XYZ)].x++;
 	m_hist[Clamp(Round(labxyz.y * HIST_MUL_Y), 0, NUM_BINS_XYZ)].y++;
 	m_hist[Clamp(Round(labxyz.z * HIST_MUL_Z), 0, NUM_BINS_XYZ)].z++;
-	if(!_isnan(labxyz.u))
+	//if(!_isnan(labxyz.u) && !boost::math::isinf<float>(labxyz.u))
 		m_hist[Clamp(Round(labxyz.u * HIST_MUL_N),0,NUM_BINS)].u++;
-	if(!_isnan(labxyz.v))
+	//if(!_isnan(labxyz.v) && !boost::math::isinf<float>(labxyz.v))
 		m_hist[Clamp(Round(labxyz.v * HIST_MUL_N),0,NUM_BINS)].v++;
-	if(!_isnan(labxyz.w))
+	//if(!_isnan(labxyz.w) && !boost::math::isinf<float>(labxyz.w))
 		m_hist[Clamp(Round(labxyz.w * HIST_MUL_N),0,NUM_BINS)].w++;
 	m_size++;
 	m_centroid.x += i;
 	m_centroid.y += j;
-	m_centroid3D.x += in->x;
-	m_centroid3D.y += in->y;
-	m_centroid3D.z += in->z;
+	if(!boost::math::isnan<float>(in->z) && !boost::math::isinf<float>(in->z)) {
+		m_centroid3D.x += in->x;
+		m_centroid3D.y += in->y;
+		m_centroid3D.z += in->z;
+	}
 	m_nodes.push_back(in);
 	if(m_min3D.x > in->x)
 		m_min3D.x = in->x;

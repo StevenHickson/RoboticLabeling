@@ -27,6 +27,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #include "opencv2/highgui/highgui.hpp"
 #include "opencv2/video/video.hpp"
 #include <assert.h>
+#include "boost/math/special_functions.hpp"
 
 #define KINECT_CX_D 2.555704e+02
 #define KINECT_CY_D 1.999361e+02
