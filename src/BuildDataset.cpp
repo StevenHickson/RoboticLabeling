@@ -345,8 +345,8 @@ void Classifier::TestCloud(const PointCloudBgr &cloud) {
 	int segments = SegmentColorAndNormals(cloud,data.normals,normalParameters[0],normalParameters[1],normalParameters[2],normalParameters[3],&data.labelCloud,&data.segmentCloud);
 	RegionTree3D tree;
 	tree.Create(cloud,data.labelCloud,*data.normals,segments,0);
-	tree.PropagateRegionHierarchy(normalParameters[4]);
-	tree.ImplementSegmentation(normalParameters[5]);
+	//tree.PropagateRegionHierarchy(normalParameters[4]);
+	//tree.ImplementSegmentation(normalParameters[5]);
 
 	int result, feature_len = 14 + 6*NUM_BINS + 3*NUM_BINS_XYZ + NUM_CLUSTERS;
 	vector<KeyPoint> kp;
@@ -354,8 +354,10 @@ void Classifier::TestCloud(const PointCloudBgr &cloud) {
 	ConvertCloudtoGrayMat(cloud,gImg);
 	featureDetector->detect(gImg,kp);
 	//Mat element = getStructuringElement(MORPH_RECT, Size( 2*2 + 1, 2*2+1 ), Point( 2, 2 ) );
-	vector<Region3D*>::const_iterator p = tree.top_regions.begin();
-	for(int i = 0; i < tree.top_regions.size(); i++, p++) {
+	//vector<Region3D*>::const_iterator p = tree.top_regions.begin();
+	vector<Region3D*>::const_iterator p = tree.region_list.begin();
+	//for(int i = 0; i < tree.top_regions.size(); i++, p++) {
+	for(int i = 0; i < tree.region_list.size(); i++, p++) {
 		if(!boost::math::isnan<float>((*p)->m_centroid3D.z) && !boost::math::isinf<float>((*p)->m_centroid3D.z) && abs((*p)->m_centroid3D.z) > 0.01) {
 			vector<float> sample;
 			GetMatFromRegion(*p,*this,gImg,data.labelCloud,kp,sample,feature_len);
