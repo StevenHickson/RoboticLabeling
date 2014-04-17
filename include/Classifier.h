@@ -45,7 +45,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
 #define NUM_CLUSTERS 20
 
 const float parameters[] = { 0.5f,800.0f,400,0.8f,800.0f,400,300,0.3f };
-const float normalParameters[] = { 0.0f,0.8f,20,100,100,0.1f };
+const float normalParameters[] = { 0.0f,0.8f,25,100,100,0.1f };
 
 cv::Mat imread_depth(const char* fname, bool binary=true);
 cv::Mat imread_float(const char* fname, bool binary=true);
